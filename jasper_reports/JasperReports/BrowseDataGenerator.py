@@ -33,10 +33,13 @@
 #
 ##############################################################################
 
+import os
 import csv
 import copy
+import base64
 from xml.dom.minidom import getDOMImplementation
 from openerp.osv import orm
+import tempfile
 import codecs
 import logging
 from .AbstractDataGenerator import AbstractDataGenerator
@@ -53,6 +56,7 @@ class BrowseDataGenerator(AbstractDataGenerator):
         # self.context = context
         self._context = context
         self._languages = []
+        self.imageFiles = {}
         self.temporaryFiles = []
         self.logger = logging.getLogger(__name__)
 
@@ -283,7 +287,18 @@ class XmlBrowseDataGenerator(BrowseDataGenerator):
             elif field_type == 'date':
                 value = '%s 00:00:00' % str(value)
             elif field_type == 'binary':
-                value = unicode(value, 'utf-8')  # base64
+                imageId = (record.id, field)
+                if imageId in self.imageFiles:
+                    fileName = self.imageFiles[imageId]
+                else:
+                    fd, fileName = tempfile.mkstemp()
+                    try:
+                        os.write(fd, base64.decodestring(value))
+                    finally:
+                        os.close(fd)
+                    self.temporaryFiles.append(fileName)
+                    self.imageFiles[imageId] = fileName
+                value = fileName
             elif isinstance(value, str):
                 value = unicode(value, 'utf-8')
             elif isinstance(value, float):
@@ -462,7 +477,18 @@ class CsvBrowseDataGenerator(BrowseDataGenerator):
             elif field_type == 'date':
                 value = '%s 00:00:00' % str(value)
             elif field_type == 'binary':
-                value = unicode(value, 'utf-8')  # base64
+                imageId = (record.id, field)
+                if imageId in self.imageFiles:
+                    fileName = self.imageFiles[imageId]
+                else:
+                    fd, fileName = tempfile.mkstemp()
+                    try:
+                        os.write(fd, base64.decodestring(value))
+                    finally:
+                        os.close(fd)
+                    self.temporaryFiles.append(fileName)
+                    self.imageFiles[imageId] = fileName
+                value = fileName
             elif isinstance(value, unicode):
                 value = value.encode('utf-8')
             elif isinstance(value, float):
